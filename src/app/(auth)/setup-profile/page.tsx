@@ -128,7 +128,7 @@ export default function SetupProfilePage() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl text-center">Complete Your Profile</CardTitle>
           <CardDescription className="text-center">
-            Let's set up your OffGrid profile
+            Let&apos;s set up your OffGrid profile
           </CardDescription>
         </CardHeader>
         <CardContent>

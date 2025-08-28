@@ -11,7 +11,7 @@ interface AuthContextType {
   user: User | null
   profile: Profile | null
   loading: boolean
-  supabase: any
+  supabase: ReturnType<typeof createClient>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }

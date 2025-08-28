@@ -456,7 +456,7 @@ export default function SettingsPage() {
                     <div className="space-y-1">
                       <Label>Show online status</Label>
                       <p className="text-sm text-gray-500">
-                        Let friends see when you're online or offline
+                        Let friends see when you&apos;re online or offline
                       </p>
                     </div>
                     <Switch
