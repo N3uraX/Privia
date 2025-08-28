@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -14,16 +14,13 @@ import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { 
-  Settings as SettingsIcon, 
   User, 
-  Camera, 
+  Settings, 
+  Lock, 
   Shield, 
   Bell, 
-  Eye,
-  EyeOff,
   Check,
-  Save,
-  Upload
+  Save
 } from 'lucide-react'
 
 export default function SettingsPage() {
@@ -74,7 +71,7 @@ export default function SettingsPage() {
     loadDiscoverySettings()
   }, [user, supabase])
 
-  const checkUsernameAvailability = async (username: string) => {
+  const checkUsernameAvailability = useCallback(async (username: string) => {
     if (username.length < 3 || username === profile?.username) {
       setUsernameAvailable(null)
       return
@@ -90,12 +87,12 @@ export default function SettingsPage() {
         .single()
 
       setUsernameAvailable(!data)
-    } catch (error) {
+    } catch {
       setUsernameAvailable(true)
     } finally {
       setCheckingUsername(false)
     }
-  }
+  }, [supabase, profile?.username, user?.id])
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -105,7 +102,7 @@ export default function SettingsPage() {
     }, 500)
 
     return () => clearTimeout(timeoutId)
-  }, [username, profile?.username])
+  }, [username, profile?.username, checkUsernameAvailability])
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -118,72 +115,34 @@ export default function SettingsPage() {
     }
 
     // Check file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Please select a valid image file (JPEG, PNG, WebP, or GIF)')
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file')
       return
     }
 
     setUploadingImage(true)
-    const uploadToastId = 'upload-' + Date.now()
-    toast.loading('Uploading image...', { id: uploadToastId })
-    
     try {
-      // Delete old avatar if exists
-      if (avatarUrl) {
-        try {
-          // Extract path from URL more reliably
-          const url = new URL(avatarUrl)
-          const pathParts = url.pathname.split('/')
-          const bucketIndex = pathParts.findIndex(part => part === 'avatars')
-          if (bucketIndex >= 0 && bucketIndex < pathParts.length - 1) {
-            const oldPath = pathParts.slice(bucketIndex + 1).join('/')
-        await supabase.storage.from('avatars').remove([oldPath])
-          }
-        } catch (deleteError) {
-          console.warn('Could not delete old avatar:', deleteError)
-          // Continue with upload even if delete fails
-        }
-      }
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`
+      const filePath = `avatars/${fileName}`
 
-      const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-      const fileName = `avatar-${Date.now()}.${fileExt}`
-      const filePath = `${user.id}/${fileName}`
-
-      // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false // Don't upsert to avoid conflicts
-        })
+        .upload(filePath, file)
 
       if (uploadError) {
-        console.error('Upload error:', uploadError)
-        throw new Error(uploadError.message || 'Failed to upload file')
+        throw uploadError
       }
 
-      if (!uploadData?.path) {
-        throw new Error('Upload succeeded but no path returned')
-      }
-
-      // Get public URL using the returned path
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
-        .getPublicUrl(uploadData.path)
-
-      if (!publicUrl) {
-        throw new Error('Failed to get public URL for uploaded image')
-      }
+        .getPublicUrl(filePath)
 
       setAvatarUrl(publicUrl)
-      toast.success('Image uploaded successfully', { id: uploadToastId })
-      
-      // Reset the file input
-      event.target.value = ''
-    } catch (error: any) {
+      toast.success('Avatar updated successfully!')
+    } catch (error: unknown) {
       console.error('Error uploading image:', error)
-      toast.error(error.message || 'Failed to upload image', { id: uploadToastId })
+      toast.error('Failed to upload image')
     } finally {
       setUploadingImage(false)
     }
@@ -221,7 +180,10 @@ export default function SettingsPage() {
         })
         .eq('id', user.id)
 
-      if (profileError) throw profileError
+      if (profileError) {
+        toast.error(profileError.message)
+        return
+      }
 
       // Update discovery settings - first try update, then insert if needed
       const { data: existingDiscovery } = await supabase
@@ -283,7 +245,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center space-x-3">
-          <SettingsIcon className="w-6 h-6 text-gray-700" />
+          <Settings className="w-6 h-6 text-gray-700" />
           <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
         </div>
       </div>
@@ -335,7 +297,7 @@ export default function SettingsPage() {
                               </>
                             ) : (
                               <>
-                                <Camera className="w-4 h-4 mr-2" />
+                                <Lock className="w-4 h-4 mr-2" />
                                 Change Photo
                               </>
                             )}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,7 @@ export default function SetupProfilePage() {
   const [displayName, setDisplayName] = useState('')
   const [username, setUsername] = useState('')
   const [bio, setBio] = useState('')
-  const [avatarUrl, setAvatarUrl] = useState('')
+  const [avatarUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
   const [checkingUsername, setCheckingUsername] = useState(false)
@@ -38,7 +38,7 @@ export default function SetupProfilePage() {
     }
   }, [user, router])
 
-  const checkUsernameAvailability = async (username: string) => {
+  const checkUsernameAvailability = useCallback(async (username: string) => {
     if (username.length < 3) {
       setUsernameAvailable(null)
       return
@@ -46,20 +46,20 @@ export default function SetupProfilePage() {
 
     setCheckingUsername(true)
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('username')
         .eq('username', username.toLowerCase())
         .single()
 
       setUsernameAvailable(!data)
-    } catch (error) {
+    } catch {
       // If no data found, username is available
       setUsernameAvailable(true)
     } finally {
       setCheckingUsername(false)
     }
-  }
+  }, [supabase])
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -69,7 +69,7 @@ export default function SetupProfilePage() {
     }, 500)
 
     return () => clearTimeout(timeoutId)
-  }, [username])
+  }, [username, checkUsernameAvailability])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -113,7 +113,7 @@ export default function SetupProfilePage() {
       await refreshProfile()
       toast.success('Profile created successfully!')
       router.push('/dashboard')
-    } catch (error) {
+    } catch {
       toast.error('Failed to create profile')
     } finally {
       setLoading(false)

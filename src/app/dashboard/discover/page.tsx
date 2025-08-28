@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { Database } from '@/lib/types/database'
@@ -21,11 +21,12 @@ export default function DiscoverPage() {
   const [showOnlineOnly, setShowOnlineOnly] = useState(false)
   const supabase = createClient()
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     if (!user) return
-    
+
+    setLoading(true)
     try {
-      // Get all users excluding current user
+      // Get all profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
@@ -33,34 +34,33 @@ export default function DiscoverPage() {
 
       if (profilesError) {
         console.error('Error loading profiles:', profilesError)
-        setLoading(false)
         return
       }
 
-      if (!profilesData || profilesData.length === 0) {
-        setUsers([])
-        setLoading(false)
+      // Get all friendships
+      const { data: friendshipsData, error: friendshipsError } = await supabase
+        .from('friends')
+        .select('*')
+        .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
+
+      if (friendshipsError) {
+        console.error('Error loading friendships:', friendshipsError)
         return
       }
 
-      // Get discovery settings separately
+      // Get discovery settings
       const { data: discoveryData } = await supabase
         .from('discovery_settings')
-        .select('user_id, discoverable')
-
-      // Get friendship statuses
-      const { data: friendshipsData } = await supabase
-        .from('friends')
-        .select('user_id, friend_id, status')
+        .select('*')
         .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
 
       // Map friendship statuses and filter discoverable users
-      const usersWithStatus = profilesData.filter((profile: any) => {
+      const usersWithStatus = profilesData.filter((profile: Database['public']['Tables']['profiles']['Row']) => {
         // Check if user is discoverable (default to true if no discovery settings)
         const discoverySettings = discoveryData?.find(ds => ds.user_id === profile.id)
         const isDiscoverable = discoverySettings ? discoverySettings.discoverable : true
         return isDiscoverable
-      }).map((profile: any) => {
+      }).map((profile: Database['public']['Tables']['profiles']['Row']) => {
         const friendship = friendshipsData?.find(f => 
           (f.user_id === user.id && f.friend_id === profile.id) ||
           (f.friend_id === user.id && f.user_id === profile.id)
@@ -89,11 +89,11 @@ export default function DiscoverPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user, supabase])
 
   useEffect(() => {
     loadUsers()
-  }, [user])
+  }, [loadUsers])
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||

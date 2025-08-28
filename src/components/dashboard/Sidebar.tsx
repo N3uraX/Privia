@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
@@ -40,31 +40,27 @@ export function Sidebar() {
     await signOut()
   }
 
-  const loadPendingRequestsCount = async () => {
+  const loadPendingRequestsCount = useCallback(async () => {
     if (!user) return
 
     try {
-      const { count, error } = await supabase
+      const { count } = await supabase
         .from('friends')
         .select('*', { count: 'exact', head: true })
         .eq('friend_id', user.id)
         .eq('status', 'pending')
 
-      if (error) {
-        console.error('Error loading pending requests count:', error)
-      } else {
-        setPendingRequestsCount(count || 0)
-      }
+      setPendingRequestsCount(count || 0)
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Error loading pending requests count:', error)
     }
-  }
+  }, [user, supabase])
 
-  const loadUnreadMessagesCount = async () => {
+  const loadUnreadMessagesCount = useCallback(async () => {
     if (!user) return
 
     try {
-      // Get user's conversations and count unread messages
+      // Get user's conversations
       const { data: participantData } = await supabase
         .from('conversation_participants')
         .select('conversation_id, last_read_at')
@@ -88,7 +84,7 @@ export function Sidebar() {
     } catch (error) {
       console.error('Error loading unread messages count:', error)
     }
-  }
+  }, [user, supabase])
 
   useEffect(() => {
     loadPendingRequestsCount()
@@ -96,7 +92,7 @@ export function Sidebar() {
 
     // Set up real-time subscription for friend requests
     const friendsChannel = supabase
-      .channel('friend-requests')
+      .channel('sidebar-friend-requests')
       .on(
         'postgres_changes',
         {
@@ -113,7 +109,7 @@ export function Sidebar() {
 
     // Set up real-time subscription for new messages
     const messagesChannel = supabase
-      .channel('unread-messages')
+      .channel('sidebar-unread-messages')
       .on(
         'postgres_changes',
         {
@@ -131,7 +127,7 @@ export function Sidebar() {
       supabase.removeChannel(friendsChannel)
       supabase.removeChannel(messagesChannel)
     }
-  }, [user])
+  }, [user, loadPendingRequestsCount, loadUnreadMessagesCount, supabase])
 
   return (
     <div className="flex flex-col w-64 bg-white border-r border-gray-200 h-full">

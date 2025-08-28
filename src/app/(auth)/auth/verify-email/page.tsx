@@ -19,7 +19,7 @@ export default function VerifyEmailPage() {
       // This would need the user's email - in a real app, you'd store this in state or localStorage
       toast.info('Please sign in again to resend verification email')
       router.push('/login')
-    } catch (error) {
+    } catch {
       toast.error('Failed to resend verification email')
     } finally {
       setLoading(false)

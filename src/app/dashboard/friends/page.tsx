@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { Database } from '@/lib/types/database'
@@ -19,54 +19,53 @@ export default function FriendsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const supabase = createClient()
 
-  const loadFriends = async () => {
+  const loadFriends = useCallback(async () => {
     if (!user) return
 
+    setLoading(true)
     try {
-      // Load friends where current user initiated the friendship
-      const { data: friendsAsUser, error: error1 } = await supabase
+      // Get friends where user initiated
+      const { data: friendsAsUser, error: friendsAsUserError } = await supabase
         .from('friends')
         .select(`
-          *,
+          status,
           friend:friend_id (
             id,
             display_name,
             username,
-            bio,
             avatar_url,
-            status,
-            last_seen
+            status
           )
         `)
         .eq('user_id', user.id)
         .eq('status', 'accepted')
 
-      // Load friends where current user received the friendship
-      const { data: friendsAsFriend, error: error2 } = await supabase
+      if (friendsAsUserError) {
+        console.error('Error loading friends as user:', friendsAsUserError)
+        return
+      }
+
+      // Get friends where user received
+      const { data: friendsAsFriend, error: friendsAsFriendError } = await supabase
         .from('friends')
         .select(`
-          *,
+          status,
           friend:user_id (
             id,
             display_name,
             username,
-            bio,
             avatar_url,
-            status,
-            last_seen
+            status
           )
         `)
         .eq('friend_id', user.id)
         .eq('status', 'accepted')
 
-      if (error1) {
-        console.error('Error loading friends (as user):', error1)
-      }
-      if (error2) {
-        console.error('Error loading friends (as friend):', error2)
+      if (friendsAsFriendError) {
+        console.error('Error loading friends as friend:', friendsAsFriendError)
+        return
       }
 
-      // Combine both directions and remove duplicates
       const allFriends: Friend[] = []
       
       // Add friends where user initiated
@@ -103,7 +102,7 @@ export default function FriendsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user, supabase])
 
   useEffect(() => {
     loadFriends()
@@ -131,7 +130,7 @@ export default function FriendsPage() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [user])
+  }, [user, loadFriends, supabase])
 
   const filteredFriends = friends.filter(friend =>
     friend.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||

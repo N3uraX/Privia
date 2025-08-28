@@ -29,6 +29,7 @@ import {
   X
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import Image from 'next/image'
 
 type Message = Database['public']['Tables']['messages']['Row'] & {
   sender: Database['public']['Tables']['profiles']['Row']
@@ -52,11 +53,9 @@ export function MessageBubble({
   message, 
   isOwn, 
   showAvatar, 
-  showTimestamp,
-  conversationId 
+  showTimestamp
 }: MessageBubbleProps) {
   const { user } = useAuth()
-  const [showReactions, setShowReactions] = useState(false)
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editedContent, setEditedContent] = useState(message.content || '')
@@ -193,11 +192,13 @@ export function MessageBubble({
         return (
           <div className="max-w-sm">
             {message.file_url && !isExpired ? (
-              <img 
-                src={message.file_url} 
+              <Image
+                src={message.file_url}
                 alt="Shared image"
-                className="rounded-lg max-w-full h-auto cursor-pointer hover:opacity-90"
-                onClick={() => window.open(message.file_url!, '_blank')}
+                width={300}
+                height={200}
+                className="rounded-lg max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => message.file_url && window.open(message.file_url, '_blank')}
               />
             ) : (
               <div className="flex items-center space-x-2 p-3 bg-gray-100 rounded-lg">
@@ -266,14 +267,12 @@ export function MessageBubble({
             ) : (
               <>
                 <p className="text-sm">
-                  {message.is_deleted ? (
-                    <span className="italic text-gray-500">[Message deleted]</span>
-                  ) : (
-                    message.content
-                  )}
-                  {message.is_edited && !message.is_deleted && (
+                  {message.content}
+                  {/* Temporarily commented out until we add these properties to the Message type
+                  {message.is_edited && (
                     <span className="text-xs text-gray-400 ml-2">(edited)</span>
                   )}
+                  */}
                 </p>
                 {isEphemeral && (
                   <p className="text-xs text-gray-400 mt-1 flex items-center">
@@ -333,8 +332,6 @@ export function MessageBubble({
                 ? 'bg-red-500 text-white rounded-br-sm'
                 : 'bg-gray-100 text-gray-900 rounded-bl-sm'
             }`}
-            onMouseEnter={() => setShowReactions(true)}
-            onMouseLeave={() => setShowReactions(false)}
           >
             {renderMessageContent()}
 
@@ -374,6 +371,7 @@ export function MessageBubble({
                       <Copy className="w-4 h-4 mr-2" />
                       Copy
                     </DropdownMenuItem>
+                    {/* Temporarily commented out until we add these properties to the Message type
                     {isOwn && canEdit && !message.is_deleted && (
                       <DropdownMenuItem 
                         onClick={() => setEditing(true)}
@@ -383,10 +381,31 @@ export function MessageBubble({
                         Edit
                       </DropdownMenuItem>
                     )}
+                    */}
+                    {isOwn && canEdit && (
+                      <DropdownMenuItem 
+                        onClick={() => setEditing(true)}
+                        disabled={loading}
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                    )}
+                    
+                    {/* Temporarily commented out until we add these properties to the Message type
                     {isOwn && !message.is_deleted && (
                       <DropdownMenuItem 
                         onClick={handleDeleteMessage}
-                        className="text-red-600"
+                        disabled={loading}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    )}
+                    */}
+                    {isOwn && (
+                      <DropdownMenuItem 
+                        onClick={handleDeleteMessage}
                         disabled={loading}
                       >
                         <Trash2 className="w-4 h-4 mr-2" />

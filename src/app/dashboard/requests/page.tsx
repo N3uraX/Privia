@@ -32,15 +32,17 @@ export default function RequestsPage() {
       const { data: incomingData, error: incomingError } = await supabase
         .from('friends')
         .select(`
-          *,
-          profile:user_id (
+          id,
+          user_id,
+          friend_id,
+          status,
+          created_at,
+          user:user_id (
             id,
             display_name,
             username,
-            bio,
             avatar_url,
-            status,
-            last_seen
+            bio
           )
         `)
         .eq('friend_id', user.id)
@@ -48,23 +50,24 @@ export default function RequestsPage() {
 
       if (incomingError) {
         console.error('Error loading incoming requests:', incomingError)
-      } else {
-        setIncomingRequests(incomingData || [])
+        return
       }
 
       // Load outgoing requests
       const { data: outgoingData, error: outgoingError } = await supabase
         .from('friends')
         .select(`
-          *,
-          profile:friend_id (
+          id,
+          user_id,
+          friend_id,
+          status,
+          created_at,
+          friend:friend_id (
             id,
             display_name,
             username,
-            bio,
             avatar_url,
-            status,
-            last_seen
+            bio
           )
         `)
         .eq('user_id', user.id)
@@ -72,9 +75,31 @@ export default function RequestsPage() {
 
       if (outgoingError) {
         console.error('Error loading outgoing requests:', outgoingError)
-      } else {
-        setOutgoingRequests(outgoingData || [])
+        return
       }
+
+      // Transform incoming data to match FriendRequest type
+      const transformedIncoming = incomingData?.map((item: any) => ({
+        id: item.id,
+        user_id: item.user_id,
+        friend_id: item.friend_id,
+        status: item.status,
+        created_at: item.created_at,
+        profile: item.user
+      })) || []
+
+      // Transform outgoing data to match FriendRequest type
+      const transformedOutgoing = outgoingData?.map((item: any) => ({
+        id: item.id,
+        user_id: item.user_id,
+        friend_id: item.friend_id,
+        status: item.status,
+        created_at: item.created_at,
+        profile: item.friend
+      })) || []
+
+      setIncomingRequests(transformedIncoming)
+      setOutgoingRequests(transformedOutgoing)
     } catch (error) {
       console.error('Error:', error)
     } finally {
@@ -177,7 +202,7 @@ export default function RequestsPage() {
                   No pending requests
                 </h3>
                 <p className="text-gray-500">
-                  Friend requests you've sent will appear here
+                  Friend requests you&apos;ve sent will appear here
                 </p>
               </div>
             ) : (

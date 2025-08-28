@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { createClient } from '@/lib/supabase/client'
 import { Database } from '@/lib/types/database'
 import { ConversationCard } from '@/components/dashboard/ConversationCard'
 import { Input } from '@/components/ui/input'
@@ -98,26 +97,30 @@ export default function ChatPage() {
               sender:sender_id (
                 id,
                 display_name,
-                username
+                username,
+                avatar_url
               )
             `)
             .eq('conversation_id', conversation.id)
             .order('created_at', { ascending: false })
             .limit(1)
-            .single()
 
-          // Count unread messages
+          // Get unread count
           const { count: unreadCount } = await supabase
             .from('messages')
             .select('*', { count: 'exact', head: true })
             .eq('conversation_id', conversation.id)
             .gt('created_at', participant.last_read_at || '1970-01-01')
-            .neq('sender_id', user.id)
 
           return {
             ...conversation,
             participants: allParticipants?.map((p: any) => p.profiles) || [],
-            last_message: lastMessage,
+            last_message: lastMessage?.[0] ? {
+              content: lastMessage[0].content,
+              message_type: lastMessage[0].message_type,
+              created_at: lastMessage[0].created_at,
+              sender: lastMessage[0].sender
+            } : undefined,
             unread_count: unreadCount || 0
           }
         }) || []

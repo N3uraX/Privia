@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { createClient } from '@/lib/supabase/client'
 import { Database } from '@/lib/types/database'
 import { ChatHeader } from '@/components/chat/ChatHeader'
 import { MessageList } from '@/components/chat/MessageList'
@@ -37,7 +36,7 @@ export default function ChatConversationPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  const loadConversation = async () => {
+  const loadConversation = useCallback(async () => {
     try {
       console.log('Loading conversation:', conversationId)
       
@@ -86,9 +85,9 @@ export default function ChatConversationPage() {
       console.error('Error:', error)
       router.push('/dashboard/chat')
     }
-  }
+  }, [conversationId, supabase, router, user?.id])
 
-  const loadMessages = async () => {
+  const loadMessages = useCallback(async () => {
     try {
       console.log('Loading messages for conversation:', conversationId)
       
@@ -157,9 +156,9 @@ export default function ChatConversationPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [conversationId, supabase])
 
-  const markAsRead = async () => {
+  const markAsRead = useCallback(async () => {
     if (!user) return
 
     try {
@@ -171,22 +170,22 @@ export default function ChatConversationPage() {
     } catch (error) {
       console.error('Error marking as read:', error)
     }
-  }
+  }, [conversationId, supabase, user])
 
   useEffect(() => {
-    if (!user || !conversationId) return
-
-    loadConversation()
-    loadMessages()
-    markAsRead()
-  }, [user, conversationId])
+    if (user && conversationId) {
+      loadConversation()
+      loadMessages()
+      markAsRead()
+    }
+  }, [user, conversationId, loadConversation, loadMessages, markAsRead])
 
   useEffect(() => {
     scrollToBottom()
   }, [messages])
 
   useEffect(() => {
-    if (!conversationId) return
+    if (!conversationId || !user) return
 
     // Subscribe to new messages
     const messagesChannel = supabase
@@ -217,7 +216,7 @@ export default function ChatConversationPage() {
           table: 'typing_indicators',
           filter: `conversation_id=eq.${conversationId}`
         },
-        async (payload) => {
+        async () => {
           // Load current typing indicators
           try {
             const { data: typingData } = await supabase
@@ -231,7 +230,7 @@ export default function ChatConversationPage() {
               .eq('is_typing', true)
               .neq('user_id', user?.id || '')
 
-            const typingUserNames = typingData?.map(t => t.profiles?.display_name).filter(Boolean) || []
+            const typingUserNames = typingData?.map(t => t.profiles?.[0]?.display_name).filter(Boolean) || []
             setTypingUsers(typingUserNames)
           } catch (error) {
             console.error('Error loading typing indicators:', error)
@@ -244,7 +243,7 @@ export default function ChatConversationPage() {
       supabase.removeChannel(messagesChannel)
       supabase.removeChannel(typingChannel)
     }
-  }, [conversationId])
+  }, [conversationId, supabase, user?.id, loadMessages, markAsRead])
 
   if (loading || !conversation) {
     return (

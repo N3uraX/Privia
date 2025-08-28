@@ -50,7 +50,7 @@ export default function SignupPage() {
           if (profileError) {
             console.log('Profile will be created during setup:', profileError.message)
           }
-        } catch (err) {
+        } catch {
           console.log('Profile will be created during profile setup')
         }
       }
@@ -61,7 +61,7 @@ export default function SignupPage() {
         toast.success('Account created! Please check your email to verify your account.')
         router.push('/auth/verify-email')
       }
-    } catch (error) {
+    } catch {
       toast.error('An unexpected error occurred')
     } finally {
       setLoading(false)
