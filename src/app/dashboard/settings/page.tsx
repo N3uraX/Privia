@@ -138,7 +138,7 @@ export default function SettingsPage() {
           const bucketIndex = pathParts.findIndex(part => part === 'avatars')
           if (bucketIndex >= 0 && bucketIndex < pathParts.length - 1) {
             const oldPath = pathParts.slice(bucketIndex + 1).join('/')
-            await supabase.storage.from('avatars').remove([oldPath])
+        await supabase.storage.from('avatars').remove([oldPath])
           }
         } catch (deleteError) {
           console.warn('Could not delete old avatar:', deleteError)
